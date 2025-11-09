@@ -8,7 +8,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <!-- Header -->
+
     <header class="bg-white shadow-sm">
         <div class="container mx-auto px-4 py-4">
             <div class="flex items-center justify-between">
@@ -25,14 +25,14 @@
         </div>
     </header>
 
-    <!-- Main Content -->
+
     <main class="container mx-auto px-4 py-8 max-w-4xl">
         <div class="bg-white rounded-xl shadow-lg overflow-hidden">
             <div class="px-6 py-4 border-b border-gray-200">
                 <h2 class="text-xl font-bold text-gray-800">Информация о результате</h2>
             </div>
 
-            <!-- Flash Messages -->
+
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     <div class="px-6 py-4">
@@ -49,7 +49,7 @@
             {% endwith %}
 
             <form method="POST" class="p-6 space-y-6">
-                <!-- Title -->
+
                 <div>
                     <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
                         Название результата *
@@ -63,7 +63,7 @@
                            placeholder="Например: Аналитик, Креативщик и т.д.">
                 </div>
 
-                <!-- Description -->
+
                 <div>
                     <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
                         Описание результата
@@ -75,7 +75,7 @@
                               placeholder="Опишите, что означает этот результат">{{ result.description if result else '' }}</textarea>
                 </div>
 
-                <!-- Score Range -->
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="min_score" class="block text-sm font-medium text-gray-700 mb-2">
@@ -103,7 +103,7 @@
                     </div>
                 </div>
 
-                <!-- Image URL -->
+
                 <div>
                     <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">
                         URL изображения (опционально)
@@ -116,7 +116,7 @@
                            placeholder="https://example.com/image.png">
                 </div>
 
-                <!-- Buttons -->
+
                 <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
                     <a href="{% if result %}{{ url_for('admin_quiz_results', quiz_id=result.quiz_id) }}{% else %}{{ url_for('admin_quiz_results', quiz_id=quiz.id) }}{% endif %}"
                        class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
@@ -132,7 +132,7 @@
     </main>
 
     <script>
-        // Автоматическое скрытие flash сообщений
+
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {

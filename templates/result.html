@@ -10,9 +10,7 @@
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <!-- Result Card -->
         <div class="bg-white rounded-2xl shadow-xl overflow-hidden transform transition-all duration-500 hover:shadow-2xl">
-            <!-- Header with gradient -->
             <div class="bg-gradient-to-r from-green-500 to-blue-500 p-8 text-center text-white">
                 <div class="w-24 h-24 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-trophy text-4xl"></i>
@@ -21,7 +19,6 @@
                 <p class="text-xl opacity-90">Вы успешно завершили квиз</p>
             </div>
 
-            <!-- Result Content -->
             <div class="p-8">
                 <div class="text-center mb-8">
                     <div class="inline-block bg-yellow-100 border border-yellow-200 rounded-full px-6 py-3 mb-6">
@@ -39,8 +36,6 @@
                         </p>
                     </div>
                 </div>
-
-                <!-- Score Visualization -->
                 <div class="bg-gray-50 rounded-xl p-6 mb-8">
                     <div class="flex items-center justify-between mb-4">
                         <span class="text-gray-700 font-semibold">Ваши баллы:</span>
@@ -55,8 +50,6 @@
                         <span>Максимум: {{ result.max_score }}</span>
                     </div>
                 </div>
-
-                <!-- Action Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
                     <a href="{{ url_for('index') }}"
                        class="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-4 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md text-center">
@@ -76,8 +69,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Additional Info -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
             <div class="bg-white rounded-xl p-6 text-center shadow-lg">
                 <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -107,17 +98,14 @@
         function shareResult() {
             const resultTitle = "{{ result.title }}";
             const userScore = {{ score }};
-            const siteUrl = "{{ url_for('index', _external=true) }}"; // Полный URL сайта
+            const siteUrl = "{{ url_for('index', _external=true) }}";
 
-            // Текст для шаринга с призывом пройти тесты
             const shareText = `🎯 Я прошел тест на MarketingQuizzes и получил результат: "${resultTitle}" (${userScore} баллов)!\n\n🚀 Хочешь узнать свой результат? Пройди интересные тесты по маркетингу, SEO и психологии!\n\n🔗 Переходи: ${siteUrl}\n\n#тесты #маркетинг #квизы #саморазвитие`;
 
-            // Показываем модальное окно с текстом для копирования
             showShareModal(shareText);
         }
 
         function showShareModal(text) {
-            // Создаем модальное окно для копирования
             const modal = document.createElement('div');
             modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
             modal.innerHTML = `
@@ -169,9 +157,7 @@
             try {
                 const successful = document.execCommand('copy');
                 if (successful) {
-                    // Показываем уведомление об успешном копировании
                     showNotification('✅ Текст скопирован! Теперь можете поделиться им в соцсетях.');
-                    // Закрываем модальное окно через 1 секунду
                     setTimeout(() => {
                         document.querySelector('.fixed')?.remove();
                     }, 1000);
@@ -184,11 +170,9 @@
         }
 
         function shareToSocial(text) {
-            // URL для шаринга в соцсети (можно настроить под разные платформы)
             const siteUrl = "{{ url_for('index', _external=true) }}";
             const encodedText = encodeURIComponent(text);
 
-            // Открываем окно выбора соцсетей
             const socialModal = document.createElement('div');
             socialModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
             socialModal.innerHTML = `
@@ -240,7 +224,6 @@
             }, 2000);
         }
 
-        // Анимация появления
         document.addEventListener('DOMContentLoaded', function() {
             const elements = document.querySelectorAll('.bg-gradient-to-r');
             elements.forEach(el => {

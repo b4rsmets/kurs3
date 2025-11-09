@@ -9,7 +9,7 @@
        <link rel="stylesheet" href="{{url_for('static',filename='dist/output.css')}}">
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <!-- Header -->
+
     <header class="bg-white shadow-sm">
         <div class="container mx-auto px-4 py-6">
             <div class="flex items-center justify-between">
@@ -26,9 +26,7 @@
         </div>
     </header>
 
-    <!-- Main Content -->
     <main class="container mx-auto px-4 py-8">
-        <!-- Hero Section -->
         <div class="text-center mb-12">
             <h1 class="text-5xl font-bold text-gray-800 mb-4">
                 Откройте своего внутреннего
@@ -42,7 +40,6 @@
             </p>
         </div>
 
-        <!-- Quizzes Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {% for quiz in quizzes %}
             <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 overflow-hidden group">
@@ -80,8 +77,6 @@
             </div>
             {% endfor %}
         </div>
-
-        <!-- Stats Section -->
         <div class="mt-16 bg-white rounded-2xl shadow-lg p-8 max-w-4xl mx-auto">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
                 <div>
@@ -100,7 +95,6 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="bg-white border-t mt-16">
         <div class="container mx-auto px-4 py-8 text-center text-gray-600">
             <p>Quiz площадка</p>

@@ -20,14 +20,12 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 
 db = SQLAlchemy(app)
 
-# Конфигурация администратора
 ADMIN_CREDENTIALS = {
     'username': 'admin',
     'password': 'admin123'
 }
 
 
-# Декоратор для проверки авторизации
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -38,7 +36,6 @@ def login_required(f):
     return decorated_function
 
 
-# Модели остаются без изменений
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.Integer, primary_key=True)
@@ -77,7 +74,6 @@ class Result(db.Model):
     image_url = db.Column(db.String(500))
 
 
-# Маршруты для публичной части остаются без изменений
 @app.route('/')
 def index():
     """Главная страница со списком квизов"""
@@ -141,7 +137,6 @@ def submit_quiz(quiz_id):
         return redirect(url_for('start_quiz', quiz_id=quiz_id))
 
 
-# АУТЕНТИФИКАЦИЯ АДМИНА
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     """Страница входа для администратора"""
@@ -171,7 +166,6 @@ def admin_logout():
     return redirect(url_for('admin_login'))
 
 
-# АДМИН-МАРШРУТЫ (требуют авторизации)
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -264,16 +258,14 @@ def admin_edit_question(question_id):
             question.text = request.form.get('text')
             question.order_index = int(request.form.get('order_index', 0))
 
-            # Обновляем ответы
             answer_texts = request.form.getlist('answer_text[]')
             answer_scores = request.form.getlist('answer_score[]')
 
-            # Удаляем старые ответы
             Answer.query.filter_by(question_id=question.id).delete()
 
-            # Добавляем новые ответы
+
             for i in range(len(answer_texts)):
-                if answer_texts[i].strip():  # Проверяем, что текст ответа не пустой
+                if answer_texts[i].strip():
                     answer = Answer(
                         question_id=question.id,
                         text=answer_texts[i].strip(),
@@ -315,7 +307,6 @@ def admin_create_question(quiz_id):
             db.session.add(question)
             db.session.flush()
 
-            # Добавляем ответы
             answer_texts = request.form.getlist('answer_text[]')
             answer_scores = request.form.getlist('answer_score[]')
 
