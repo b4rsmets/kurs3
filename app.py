@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import ssl
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
@@ -10,6 +11,11 @@ database_url = 'postgresql+pg8000://bars:7AJTm2ZafCE8FdV8GtPWBWHz0CmaDlg8@dpg-d4
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {
+        'ssl_context': ssl.create_default_context()
+    }
+}
 
 db = SQLAlchemy(app)
 class Quiz(db.Model):
