@@ -1,15 +1,17 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = '1112223333'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://bars:7AJTm2ZafCE8FdV8GtPWBWHz0CmaDlg8@dpg-d48curjipnbc73de2jh0-a/quiz_db_y51y'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
+
+database_url = 'postgresql+pg8000://bars:7AJTm2ZafCE8FdV8GtPWBWHz0CmaDlg8@dpg-d48curjipnbc73de2jh0-a.frankfurt-postgres.render.com/quiz_db_y51y'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.Integer, primary_key=True)
