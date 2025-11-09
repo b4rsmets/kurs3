@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if question %}Редактирование{% else %}Создание{% endif %} вопроса - Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <a href="{% if question %}{{ url_for('admin_quiz_questions', quiz_id=question.quiz_id) }}{% else %}{{ url_for('admin_quiz_questions', quiz_id=quiz.id) }}{% endif %}"
+                       class="text-blue-600 hover:text-blue-700 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h1 class="text-2xl font-bold text-gray-800">
+                        {% if question %}Редактирование вопроса{% else %}Создание вопроса{% endif %}
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Информация о вопросе</h2>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="px-6 py-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} p-4 rounded-lg mb-4
+                                {% if category == 'success' %}bg-green-100 text-green-700 border border-green-200
+                                {% elif category == 'error' %}bg-red-100 text-red-700 border border-red-200
+                                {% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="p-6 space-y-6">
+                <!-- Question Text -->
+                <div>
+                    <label for="text" class="block text-sm font-medium text-gray-700 mb-2">
+                        Текст вопроса *
+                    </label>
+                    <textarea id="text"
+                              name="text"
+                              rows="3"
+                              required
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Введите текст вопроса">{{ question.text if question else '' }}</textarea>
+                </div>
+
+                <!-- Order Index -->
+                <div>
+                    <label for="order_index" class="block text-sm font-medium text-gray-700 mb-2">
+                        Порядковый номер
+                    </label>
+                    <input type="number"
+                           id="order_index"
+                           name="order_index"
+                           value="{{ question.order_index if question else '0' }}"
+                           min="0"
+                           class="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                </div>
+
+                <!-- Answers -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-4">
+                        Варианты ответов *
+                    </label>
+                    <div id="answers-container" class="space-y-3">
+                        {% if question %}
+                            {% for answer in question.answers %}
+                            <div class="answer-item flex space-x-3">
+                                <input type="text"
+                                       name="answer_text[]"
+                                       value="{{ answer.text }}"
+                                       placeholder="Текст ответа"
+                                       required
+                                       class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                                <input type="number"
+                                       name="answer_score[]"
+                                       value="{{ answer.score }}"
+                                       placeholder="Баллы"
+                                       required
+                                       class="w-24 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                                <button type="button"
+                                        onclick="removeAnswer(this)"
+                                        class="bg-red-500 hover:bg-red-600 text-white px-4 rounded-lg transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Default empty answers -->
+                            {% for i in range(4) %}
+                            <div class="answer-item flex space-x-3">
+                                <input type="text"
+                                       name="answer_text[]"
+                                       placeholder="Текст ответа"
+                                       required
+                                       class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                                <input type="number"
+                                       name="answer_score[]"
+                                       value="0"
+                                       placeholder="Баллы"
+                                       required
+                                       class="w-24 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                                <button type="button"
+                                        onclick="removeAnswer(this)"
+                                        class="bg-red-500 hover:bg-red-600 text-white px-4 rounded-lg transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <button type="button"
+                            onclick="addAnswer()"
+                            class="mt-3 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Добавить ответ
+                    </button>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <a href="{% if question %}{{ url_for('admin_quiz_questions', quiz_id=question.quiz_id) }}{% else %}{{ url_for('admin_quiz_questions', quiz_id=quiz.id) }}{% endif %}"
+                       class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                        Отмена
+                    </a>
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                        {% if question %}Обновить вопрос{% else %}Создать вопрос{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        function addAnswer() {
+            const container = document.getElementById('answers-container');
+            const newAnswer = document.createElement('div');
+            newAnswer.className = 'answer-item flex space-x-3';
+            newAnswer.innerHTML = `
+                <input type="text"
+                       name="answer_text[]"
+                       placeholder="Текст ответа"
+                       required
+                       class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <input type="number"
+                       name="answer_score[]"
+                       value="0"
+                       placeholder="Баллы"
+                       required
+                       class="w-24 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                <button type="button"
+                        onclick="removeAnswer(this)"
+                        class="bg-red-500 hover:bg-red-600 text-white px-4 rounded-lg transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(newAnswer);
+        }
+
+        function removeAnswer(button) {
+            const answerItem = button.closest('.answer-item');
+            if (document.querySelectorAll('.answer-item').length > 1) {
+                answerItem.remove();
+            } else {
+                alert('Должен остаться хотя бы один ответ');
+            }
+        }
+
+        // Автоматическое скрытие flash сообщений
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.transition = 'opacity 0.5s ease-out';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

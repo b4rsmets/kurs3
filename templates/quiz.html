@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ quiz.title }} - MarketingQuizzes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static',filename='dist/output.css') }}">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<!-- Progress Header -->
+<header class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between mb-4">
+            <a href="{{ url_for('index') }}"
+               class="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                <span>Назад</span>
+            </a>
+            <div class="text-center">
+                <h1 class="text-xl font-bold text-gray-800">{{ quiz.title }}</h1>
+                <p class="text-sm text-gray-600">Вопрос <span id="current-question">1</span>
+                    из {{ quiz.questions|length }}</p>
+            </div>
+            <div class="w-20"></div> <!-- Spacer for balance -->
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-200 rounded-full h-3">
+            <div id="progress-bar"
+                 class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500 ease-out"
+                 style="width: 0%"></div>
+        </div>
+    </div>
+</header>
+
+<!-- Quiz Content -->
+<main class="container mx-auto px-4 py-8 max-w-4xl">
+    <form id="quiz-form" action="{{ url_for('submit_quiz', quiz_id=quiz.id) }}" method="post">
+        {% for question in quiz.questions %}
+            <div class="question-step {% if loop.index != 1 %}hidden{% endif %}" data-step="{{ loop.index }}">
+                <!-- Question Card -->
+                <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 transform transition-all duration-500">
+                    <div class="flex items-center mb-6">
+                        <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                            {{ loop.index }}
+                        </div>
+                        <div class="ml-4">
+                            <h2 class="text-2xl font-bold text-gray-800">Вопрос {{ loop.index }}</h2>
+                            <p class="text-gray-600">Выберите наиболее подходящий вариант</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xl text-gray-800 mb-8 leading-relaxed">{{ question.text }}</p>
+
+                    <div class="space-y-4">
+                        {% for answer in question.answers %}
+                            <label class="answer-option block cursor-pointer group">
+                                <input type="radio" name="question_{{ question.id }}" value="{{ answer.id }}"
+                                       class="hidden peer" required>
+                                <div class="bg-gray-50 border-2 border-gray-200 rounded-xl p-6 transition-all duration-300
+                  peer-checked:border-blue-500 peer-checked:bg-blue-50
+                  group-hover:border-gray-300 group-hover:bg-gray-100
+                  peer-checked:group-hover:border-blue-600 peer-checked:group-hover:bg-blue-100">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 border-2 border-gray-300 rounded-full flex items-center justify-center mr-4
+                          peer-checked:border-blue-600 peer-checked:bg-blue-600 transition-all duration-300">
+                                            <i class="fas fa-check text-white text-sm opacity-0 peer-checked:opacity-100 transition-opacity duration-300 border-2 border-blue-500 rounded-full p-1"></i>
+                                        </div>
+                                        <span class="text-lg text-gray-800 peer-checked:text-blue-700 transition-colors duration-300">
+                    {{ answer.text }}
+                </span>
+                                    </div>
+                                </div>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between items-center">
+                    <button type="button" onclick="previousQuestion()"
+                            class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md {% if loop.index == 1 %}invisible{% endif %}">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        Назад
+                    </button>
+
+                    {% if loop.last %}
+                        <button type="submit" id="submit-btn"
+                                class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md opacity-50 cursor-not-allowed">
+                            Завершить квиз
+                            <i class="fas fa-trophy ml-2"></i>
+                        </button>
+                    {% else %}
+                        <button type="button" onclick="nextQuestion()" id="next-btn-{{ loop.index }}"
+                                class="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md opacity-50 cursor-not-allowed">
+                            Далее
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </form>
+</main>
+
+<script>
+    let currentStep = 1;
+    const totalSteps = {{ quiz.questions|length }};
+    const answeredQuestions = new Set();
+
+    function updateProgress() {
+        const progress = ((currentStep - 1) / totalSteps) * 100;
+        document.getElementById('progress-bar').style.width = `${progress}%`;
+        document.getElementById('current-question').textContent = currentStep;
+    }
+
+    function showStep(step) {
+        document.querySelectorAll('.question-step').forEach((el, index) => {
+            el.classList.toggle('hidden', index + 1 !== step);
+        });
+        currentStep = step;
+        updateProgress();
+        updateButtonState();
+    }
+
+    function nextQuestion() {
+        if (currentStep < totalSteps) {
+            showStep(currentStep + 1);
+        }
+    }
+
+    function previousQuestion() {
+        if (currentStep > 1) {
+            showStep(currentStep - 1);
+        }
+    }
+
+    function updateButtonState() {
+        const currentQuestion = document.querySelector(`.question-step[data-step="${currentStep}"]`);
+        const selectedAnswer = currentQuestion.querySelector('input[type="radio"]:checked');
+        const nextButton = currentStep === totalSteps ?
+            document.getElementById('submit-btn') :
+            document.getElementById(`next-btn-${currentStep}`);
+
+        if (selectedAnswer) {
+            nextButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            nextButton.classList.add('opacity-100', 'cursor-pointer');
+        } else {
+            nextButton.classList.add('opacity-50', 'cursor-not-allowed');
+            nextButton.classList.remove('opacity-100', 'cursor-pointer');
+        }
+    }
+
+    // Event listeners
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener('change', updateButtonState);
+    });
+
+    // Initialize
+    updateProgress();
+    updateButtonState();
+</script>
+</body>
+</html>

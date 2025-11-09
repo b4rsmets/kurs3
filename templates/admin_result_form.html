@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if result %}Редактирование{% else %}Создание{% endif %} результата - Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <a href="{% if result %}{{ url_for('admin_quiz_results', quiz_id=result.quiz_id) }}{% else %}{{ url_for('admin_quiz_results', quiz_id=quiz.id) }}{% endif %}"
+                       class="text-blue-600 hover:text-blue-700 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                    </a>
+                    <h1 class="text-2xl font-bold text-gray-800">
+                        {% if result %}Редактирование результата{% else %}Создание результата{% endif %}
+                    </h1>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h2 class="text-xl font-bold text-gray-800">Информация о результате</h2>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="px-6 py-4">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} p-4 rounded-lg mb-4
+                                {% if category == 'success' %}bg-green-100 text-green-700 border border-green-200
+                                {% elif category == 'error' %}bg-red-100 text-red-700 border border-red-200
+                                {% else %}bg-blue-100 text-blue-700 border border-blue-200{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" class="p-6 space-y-6">
+                <!-- Title -->
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Название результата *
+                    </label>
+                    <input type="text"
+                           id="title"
+                           name="title"
+                           value="{{ result.title if result else '' }}"
+                           required
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                           placeholder="Например: Аналитик, Креативщик и т.д.">
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label for="description" class="block text-sm font-medium text-gray-700 mb-2">
+                        Описание результата
+                    </label>
+                    <textarea id="description"
+                              name="description"
+                              rows="4"
+                              class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Опишите, что означает этот результат">{{ result.description if result else '' }}</textarea>
+                </div>
+
+                <!-- Score Range -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="min_score" class="block text-sm font-medium text-gray-700 mb-2">
+                            Минимальный балл *
+                        </label>
+                        <input type="number"
+                               id="min_score"
+                               name="min_score"
+                               value="{{ result.min_score if result else '0' }}"
+                               required
+                               min="0"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                    <div>
+                        <label for="max_score" class="block text-sm font-medium text-gray-700 mb-2">
+                            Максимальный балл *
+                        </label>
+                        <input type="number"
+                               id="max_score"
+                               name="max_score"
+                               value="{{ result.max_score if result else '10' }}"
+                               required
+                               min="0"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                    </div>
+                </div>
+
+                <!-- Image URL -->
+                <div>
+                    <label for="image_url" class="block text-sm font-medium text-gray-700 mb-2">
+                        URL изображения (опционально)
+                    </label>
+                    <input type="url"
+                           id="image_url"
+                           name="image_url"
+                           value="{{ result.image_url if result else '' }}"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                           placeholder="https://example.com/image.png">
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                    <a href="{% if result %}{{ url_for('admin_quiz_results', quiz_id=result.quiz_id) }}{% else %}{{ url_for('admin_quiz_results', quiz_id=quiz.id) }}{% endif %}"
+                       class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                        Отмена
+                    </a>
+                    <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
+                        {% if result %}Обновить результат{% else %}Создать результат{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // Автоматическое скрытие flash сообщений
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.transition = 'opacity 0.5s ease-out';
+                alert.style.opacity = '0';
+                setTimeout(() => alert.remove(), 500);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>
