@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ваш результат - MarketingQuizzes</title>
-       <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{url_for('static',filename='dist/output.css')}}">
 </head>
@@ -105,15 +105,139 @@
 
     <script>
         function shareResult() {
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Мой результат в MarketingQuizzes',
-                    text: `Я прошел квиз и получил результат: "${result.title}"!`,
-                    url: window.location.href,
-                });
-            } else {
-                alert('Скопируйте ссылку чтобы поделиться результатом!');
+            const resultTitle = "{{ result.title }}";
+            const userScore = {{ score }};
+            const siteUrl = "{{ url_for('index', _external=true) }}"; // Полный URL сайта
+
+            // Текст для шаринга с призывом пройти тесты
+            const shareText = `🎯 Я прошел тест на MarketingQuizzes и получил результат: "${resultTitle}" (${userScore} баллов)!\n\n🚀 Хочешь узнать свой результат? Пройди интересные тесты по маркетингу, SEO и психологии!\n\n🔗 Переходи: ${siteUrl}\n\n#тесты #маркетинг #квизы #саморазвитие`;
+
+            // Показываем модальное окно с текстом для копирования
+            showShareModal(shareText);
+        }
+
+        function showShareModal(text) {
+            // Создаем модальное окно для копирования
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-xl font-bold text-gray-800">Поделиться результатом</h3>
+                        <button onclick="this.closest('.fixed').remove()"
+                                class="text-gray-500 hover:text-gray-700 transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <p class="text-gray-600 mb-4">Скопируйте текст ниже и поделитесь им в соцсетях или мессенджерах:</p>
+
+                    <div class="bg-gray-100 p-4 rounded-lg mb-4 border border-gray-200">
+                        <p class="text-sm break-words whitespace-pre-line">${text}</p>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button onclick="copyToClipboard('${text.replace(/'/g, "\\'")}')"
+                                class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fas fa-copy"></i>
+                            Копировать
+                        </button>
+                        <button onclick="shareToSocial('${text.replace(/'/g, "\\'")}')"
+                                class="flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fas fa-share"></i>
+                            Поделиться
+                        </button>
+                    </div>
+
+                    <div class="mt-4 text-center">
+                        <p class="text-xs text-gray-500">Пригласите друзей пройти тесты!</p>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            textarea.setSelectionRange(0, 99999);
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    // Показываем уведомление об успешном копировании
+                    showNotification('✅ Текст скопирован! Теперь можете поделиться им в соцсетях.');
+                    // Закрываем модальное окно через 1 секунду
+                    setTimeout(() => {
+                        document.querySelector('.fixed')?.remove();
+                    }, 1000);
+                }
+            } catch (err) {
+                showNotification('❌ Не удалось скопировать текст. Скопируйте его вручную.');
             }
+
+            document.body.removeChild(textarea);
+        }
+
+        function shareToSocial(text) {
+            // URL для шаринга в соцсети (можно настроить под разные платформы)
+            const siteUrl = "{{ url_for('index', _external=true) }}";
+            const encodedText = encodeURIComponent(text);
+
+            // Открываем окно выбора соцсетей
+            const socialModal = document.createElement('div');
+            socialModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+            socialModal.innerHTML = `
+                <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-auto">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 text-center">Поделиться в</h3>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="https://t.me/share/url?url=${encodeURIComponent(siteUrl)}&text=${encodedText}"
+                           target="_blank"
+                           class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fab fa-telegram"></i>
+                            Telegram
+                        </a>
+
+                        <a href="https://vk.com/share.php?url=${encodeURIComponent(siteUrl)}&title=${encodedText}"
+                           target="_blank"
+                           class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fab fa-vk"></i>
+                            ВКонтакте
+                        </a>
+
+                        <a href="https://twitter.com/intent/tweet?text=${encodedText}"
+                           target="_blank"
+                           class="bg-blue-400 hover:bg-blue-500 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fab fa-twitter"></i>
+                            Twitter
+                        </a>
+
+                        <button onclick="this.closest('.fixed').remove()"
+                                class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2">
+                            <i class="fas fa-times"></i>
+                            Отмена
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(socialModal);
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 2000);
         }
 
         // Анимация появления
