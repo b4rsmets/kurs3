@@ -1,8 +1,9 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import ssl
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
@@ -18,6 +19,26 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 }
 
 db = SQLAlchemy(app)
+
+# Конфигурация администратора
+ADMIN_CREDENTIALS = {
+    'username': 'admin',
+    'password': 'admin123'
+}
+
+
+# Декоратор для проверки авторизации
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+# Модели остаются без изменений
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.Integer, primary_key=True)
@@ -56,18 +77,18 @@ class Result(db.Model):
     image_url = db.Column(db.String(500))
 
 
+# Маршруты для публичной части остаются без изменений
 @app.route('/')
 def index():
     """Главная страница со списком квизов"""
-    quizzes = Quiz.query.all()  # Убрана фильтрация по is_active
+    quizzes = Quiz.query.all()
     return render_template('index.html', quizzes=quizzes)
 
 
 @app.route('/quiz/<int:quiz_id>/start')
 def start_quiz(quiz_id):
-    """Начало квиза (новая страница с пошаговым прохождением)"""
+    """Начало квиза"""
     quiz = Quiz.query.get_or_404(quiz_id)
-    # Сортируем вопросы по order_index
     quiz.questions = sorted(quiz.questions, key=lambda x: x.order_index)
     return render_template('quiz.html', quiz=quiz)
 
@@ -85,25 +106,20 @@ def submit_quiz(quiz_id):
         total_score = 0
         answered_questions = set()
 
-        # Собираем ответы из формы
         for key, value in request.form.items():
             if key.startswith('question_'):
                 question_id = int(key.replace('question_', ''))
                 answer_id = int(value)
-
-                # Проверяем, что ответ существует и принадлежит вопросу
                 answer = Answer.query.filter_by(id=answer_id, question_id=question_id).first()
                 if answer:
                     total_score += answer.score
                     answered_questions.add(question_id)
 
-        # Проверяем, что ответили на все вопросы
         quiz_questions_count = Question.query.filter_by(quiz_id=quiz_id).count()
         if len(answered_questions) != quiz_questions_count:
             flash('Пожалуйста, ответьте на все вопросы!', 'error')
             return redirect(url_for('start_quiz', quiz_id=quiz_id))
 
-        # Ищем подходящий результат
         result = Result.query.filter(
             Result.quiz_id == quiz_id,
             Result.min_score <= total_score,
@@ -111,7 +127,6 @@ def submit_quiz(quiz_id):
         ).first()
 
         if not result:
-            # Если результат не найден, берем ближайший по баллам
             results = Result.query.filter_by(quiz_id=quiz_id).all()
             if results:
                 result = min(results, key=lambda x: abs((x.min_score + x.max_score) / 2 - total_score))
@@ -126,8 +141,39 @@ def submit_quiz(quiz_id):
         return redirect(url_for('start_quiz', quiz_id=quiz_id))
 
 
-# АДМИН-МАРШРУТЫ
+# АУТЕНТИФИКАЦИЯ АДМИНА
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """Страница входа для администратора"""
+    # Если уже авторизован, перенаправляем в админку
+    if session.get('admin_logged_in'):
+        return redirect(url_for('admin_dashboard'))
+
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        if username == ADMIN_CREDENTIALS['username'] and password == ADMIN_CREDENTIALS['password']:
+            session['admin_logged_in'] = True
+            flash('Успешный вход в админ-панель!', 'success')
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Неверное имя пользователя или пароль', 'error')
+
+    return render_template('admin_login.html')
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    """Выход из админ-панели"""
+    session.pop('admin_logged_in', None)
+    flash('Вы вышли из админ-панели', 'success')
+    return redirect(url_for('admin_login'))
+
+
+# АДМИН-МАРШРУТЫ (требуют авторизации)
 @app.route('/admin')
+@login_required
 def admin_dashboard():
     """Админ-панель - список всех квизов"""
     quizzes = Quiz.query.all()
@@ -135,6 +181,7 @@ def admin_dashboard():
 
 
 @app.route('/admin/quiz/new', methods=['GET', 'POST'])
+@login_required
 def admin_create_quiz():
     """Создание нового квиза"""
     if request.method == 'POST':
@@ -159,8 +206,8 @@ def admin_create_quiz():
 
     return render_template('admin_quiz_form.html', quiz=None)
 
-
 @app.route('/admin/quiz/<int:quiz_id>/edit', methods=['GET', 'POST'])
+@login_required
 def admin_edit_quiz(quiz_id):
     """Редактирование квиза"""
     quiz = Quiz.query.get_or_404(quiz_id)
@@ -183,6 +230,7 @@ def admin_edit_quiz(quiz_id):
 
 
 @app.route('/admin/quiz/<int:quiz_id>/delete', methods=['POST'])
+@login_required
 def admin_delete_quiz(quiz_id):
     """Удаление квиза"""
     try:
@@ -198,6 +246,7 @@ def admin_delete_quiz(quiz_id):
 
 
 @app.route('/admin/quiz/<int:quiz_id>/questions')
+@login_required
 def admin_quiz_questions(quiz_id):
     """Управление вопросами квиза"""
     quiz = Quiz.query.get_or_404(quiz_id)
@@ -205,6 +254,7 @@ def admin_quiz_questions(quiz_id):
 
 
 @app.route('/admin/question/<int:question_id>/edit', methods=['GET', 'POST'])
+@login_required
 def admin_edit_question(question_id):
     """Редактирование вопроса"""
     question = Question.query.get_or_404(question_id)
@@ -243,6 +293,7 @@ def admin_edit_question(question_id):
 
 
 @app.route('/admin/quiz/<int:quiz_id>/question/new', methods=['GET', 'POST'])
+@login_required
 def admin_create_question(quiz_id):
     """Создание нового вопроса"""
     quiz = Quiz.query.get_or_404(quiz_id)
@@ -289,6 +340,7 @@ def admin_create_question(quiz_id):
 
 
 @app.route('/admin/question/<int:question_id>/delete', methods=['POST'])
+@login_required
 def admin_delete_question(question_id):
     """Удаление вопроса"""
     try:
@@ -305,6 +357,7 @@ def admin_delete_question(question_id):
 
 
 @app.route('/admin/quiz/<int:quiz_id>/results')
+@login_required
 def admin_quiz_results(quiz_id):
     """Управление результатами квиза"""
     quiz = Quiz.query.get_or_404(quiz_id)
@@ -312,6 +365,7 @@ def admin_quiz_results(quiz_id):
 
 
 @app.route('/admin/result/<int:result_id>/edit', methods=['GET', 'POST'])
+@login_required
 def admin_edit_result(result_id):
     """Редактирование результата"""
     result = Result.query.get_or_404(result_id)
@@ -336,6 +390,7 @@ def admin_edit_result(result_id):
 
 
 @app.route('/admin/quiz/<int:quiz_id>/result/new', methods=['GET', 'POST'])
+@login_required
 def admin_create_result(quiz_id):
     """Создание нового результата"""
     quiz = Quiz.query.get_or_404(quiz_id)
@@ -374,6 +429,7 @@ def admin_create_result(quiz_id):
 
 
 @app.route('/admin/result/<int:result_id>/delete', methods=['POST'])
+@login_required
 def admin_delete_result(result_id):
     """Удаление результата"""
     try:
@@ -387,105 +443,6 @@ def admin_delete_result(result_id):
         flash(f'Ошибка при удалении результата: {str(e)}', 'error')
 
     return redirect(url_for('admin_quiz_results', quiz_id=quiz_id))
-
-
-# Утилиты
-@app.route('/create-sample-data')
-def create_sample_data():
-    """Маршрут для создания тестовых данных (для разработки)"""
-    try:
-        # Очищаем существующие данные
-        db.drop_all()
-        db.create_all()
-
-        # 1. Создаем квиз
-        quiz1 = Quiz(
-            title="Какой вы тип маркетолога?",
-            description="Пройдите тест и узнайте, какой у вас тип маркетингового мышления",
-            created_at=datetime.utcnow()
-        )
-        db.session.add(quiz1)
-        db.session.flush()
-
-        # 2. Добавляем вопросы
-        questions_data = [
-            {
-                'text': 'Как вы подходите к планированию маркетинговой кампании?',
-                'order_index': 1,
-                'answers': [
-                    {'text': 'Тщательно анализирую данные и составляю детальный план', 'score': 5},
-                    {'text': 'Создаю общую стратегию, детали решаю по ходу', 'score': 3},
-                    {'text': 'Действую интуитивно, импровизирую', 'score': 1},
-                    {'text': 'Копирую успешные кейсы конкурентов', 'score': 2}
-                ]
-            },
-            {
-                'text': 'Что для вас важнее в рекламном креативе?',
-                'order_index': 2,
-                'answers': [
-                    {'text': 'Креативность и оригинальность', 'score': 1},
-                    {'text': 'Измеримость результатов', 'score': 5},
-                    {'text': 'Вирусный потенциал', 'score': 3},
-                    {'text': 'Соответствие бренду', 'score': 4}
-                ]
-            }
-        ]
-
-        for q_data in questions_data:
-            question = Question(
-                quiz_id=quiz1.id,
-                text=q_data['text'],
-                order_index=q_data['order_index']
-            )
-            db.session.add(question)
-            db.session.flush()
-
-            for a_data in q_data['answers']:
-                answer = Answer(
-                    question_id=question.id,
-                    text=a_data['text'],
-                    score=a_data['score']
-                )
-                db.session.add(answer)
-
-        # 3. Добавляем результаты
-        results_data = [
-            {
-                'min_score': 6,
-                'max_score': 10,
-                'title': '📊 Аналитик',
-                'description': 'Вы - прирожденный аналитик!',
-                'image_url': '/static/images/analyst.png'
-            },
-            {
-                'min_score': 3,
-                'max_score': 5,
-                'title': '🎨 Креативщик',
-                'description': 'Вы - творческая личность!',
-                'image_url': '/static/images/creative.png'
-            }
-        ]
-
-        for r_data in results_data:
-            result = Result(
-                quiz_id=quiz1.id,
-                min_score=r_data['min_score'],
-                max_score=r_data['max_score'],
-                title=r_data['title'],
-                description=r_data['description'],
-                image_url=r_data['image_url']
-            )
-            db.session.add(result)
-
-        db.session.commit()
-        flash('Тестовые данные успешно созданы!', 'success')
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Ошибка при создании тестовых данных: {str(e)}', 'error')
-
-    return redirect(url_for('admin_dashboard'))
-
 
 @app.errorhandler(404)
 def not_found_error(error):
