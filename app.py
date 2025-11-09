@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '1112223333'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:bars@localhost:5432/quiz_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://bars:7AJTm2ZafCE8FdV8GtPWBWHz0CmaDlg8@dpg-d48curjipnbc73de2jh0-a/quiz_db_y51y'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
