@@ -2,21 +2,28 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import ssl
 from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
 
-# Используем psycopg2 вместо pg8000
-database_url = 'postgresql://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4u62oq4d50c739hb1dg-a.frankfurt-postgres.render.com:5432/quiz_db_bew6'
+# Используем pg8000
+database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4u62oq4d50c739hb1dg-a.frankfurt-postgres.render.com:5432/quiz_db_bew6'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Настройка SSL для pg8000
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_recycle': 300,
     'pool_pre_ping': True,
     'connect_args': {
-        'sslmode': 'require'
+        'ssl_context': ssl_context
     }
 }
 
