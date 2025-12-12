@@ -12,11 +12,11 @@ database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'connect_args': {
-        'ssl_context': ssl.create_default_context()
-    }
-}
+# app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+#     'connect_args': {
+#         'ssl_context': ssl.create_default_context()
+#     }
+# }
 
 db = SQLAlchemy(app)
 
