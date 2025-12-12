@@ -12,11 +12,22 @@ database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-#     'connect_args': {
-#         'ssl_context': ssl.create_default_context()
-#     }
-# }
+
+# Упрощенная SSL конфигурация
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {
+        'ssl_context': ssl_context,
+        'timeout': 30
+    },
+    'pool_recycle': 300,
+    'pool_pre_ping': True,
+    'pool_size': 5,
+    'max_overflow': 10
+}
 
 db = SQLAlchemy(app)
 
@@ -24,7 +35,15 @@ ADMIN_CREDENTIALS = {
     'username': 'admin',
     'password': 'admin123'
 }
-
+def init_database():
+    """Функция для инициализации базы данных"""
+    try:
+        with app.app_context():
+            db.create_all()
+            print("✅ База данных инициализирована")
+    except Exception as e:
+        print(f"⚠️  Предупреждение при инициализации БД: {e}")
+        # Не прерываем выполнение, возможно подключится позже
 
 def login_required(f):
     @wraps(f)
@@ -435,6 +454,15 @@ def admin_delete_result(result_id):
 
     return redirect(url_for('admin_quiz_results', quiz_id=quiz_id))
 
+@app.route('/health')
+def health_check():
+    """Endpoint для проверки здоровья приложения"""
+    try:
+        db.session.execute('SELECT 1')
+        return jsonify({'status': 'healthy', 'database': 'connected'})
+    except Exception as e:
+        return jsonify({'status': 'unhealthy', 'database': 'disconnected', 'error': str(e)}), 500
+
 @app.errorhandler(404)
 def not_found_error(error):
     return render_template('404.html'), 404
@@ -447,6 +475,12 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
+    # Инициализируем БД при запуске, но не блокируем запуск при ошибке
+    try:
+        init_database()
+    except Exception as e:
+        print(f"⚠️  Не удалось инициализировать БД при запуске: {e}")
+
+    # Для Render используем порт из переменной окружения
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
