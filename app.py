@@ -447,18 +447,25 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 
-def create_tables():
-    """Функция для создания таблиц"""
+def init_database():
+    """Инициализация базы данных"""
     try:
         with app.app_context():
             db.create_all()
-            print("✅ Таблицы успешно созданы или уже существуют")
+            print("✅ Таблицы созданы или уже существуют")
+
+            # Проверяем, есть ли уже квизы
+            if Quiz.query.count() == 0:
+                print("База данных пуста, можно добавить тестовые данные")
     except Exception as e:
-        print(f"❌ Ошибка при создании таблиц: {e}")
+        print(f"❌ Ошибка при инициализации базы: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == '__main__':
-    # Создаем таблицы при запуске
-    create_tables()
+    # Инициализируем базу данных
+    init_database()
+
     # Для локального запуска
     app.run(debug=True, host='0.0.0.0', port=5000)
