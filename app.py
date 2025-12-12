@@ -8,25 +8,22 @@ from functools import wraps
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
 
+# ИСПОЛЬЗУЙТЕ ССЫЛКУ ИЗ ПАНЕЛИ УПРАВЛЕНИЯ RENDER.COM!
+# Скопируйте точную строку подключения из настроек вашей базы данных на Render
 database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4u62oq4d50c739hb1dg-a.frankfurt-postgres.render.com/quiz_db_bew6'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Упрощенная SSL конфигурация
-ssl_context = ssl.create_default_context()
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
-
+# ДЛЯ RENDER.COM ЛУЧШЕ ВООБЩЕ УБРАТЬ SSL НАСТРОЙКИ НА ВРЕМЯ ТЕСТА
+# ИЛИ ИСПОЛЬЗОВАТЬ БОЛЕЕ ПРОСТУЮ КОНФИГУРАЦИЮ:
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {
-        'ssl_context': ssl_context,
-        'timeout': 30
+        'sslmode': 'require',  # Render требует SSL
+        'connect_timeout': 10
     },
     'pool_recycle': 300,
     'pool_pre_ping': True,
-    'pool_size': 5,
-    'max_overflow': 10
 }
 
 db = SQLAlchemy(app)
@@ -35,26 +32,8 @@ ADMIN_CREDENTIALS = {
     'username': 'admin',
     'password': 'admin123'
 }
-def init_database():
-    """Функция для инициализации базы данных"""
-    try:
-        with app.app_context():
-            db.create_all()
-            print("✅ База данных инициализирована")
-    except Exception as e:
-        print(f"⚠️  Предупреждение при инициализации БД: {e}")
-        # Не прерываем выполнение, возможно подключится позже
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            return redirect(url_for('admin_login'))
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-
+# МОДЕЛИ
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.Integer, primary_key=True)
@@ -64,7 +43,6 @@ class Quiz(db.Model):
     questions = db.relationship('Question', backref='quiz', lazy=True, cascade='all, delete-orphan')
     results = db.relationship('Result', backref='quiz', lazy=True, cascade='all, delete-orphan')
 
-
 class Question(db.Model):
     __tablename__ = 'question'
     id = db.Column(db.Integer, primary_key=True)
@@ -73,14 +51,12 @@ class Question(db.Model):
     order_index = db.Column(db.Integer, default=0)
     answers = db.relationship('Answer', backref='question', lazy=True, cascade='all, delete-orphan')
 
-
 class Answer(db.Model):
     __tablename__ = 'answer'
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
     text = db.Column(db.String(255), nullable=False)
     score = db.Column(db.Integer, nullable=False)
-
 
 class Result(db.Model):
     __tablename__ = 'result'
@@ -92,6 +68,24 @@ class Result(db.Model):
     description = db.Column(db.Text)
     image_url = db.Column(db.String(500))
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ВАЖНО: Инициализация БД при первом запросе
+@app.before_first_request
+def create_tables():
+    """Создание таблиц при первом запросе к приложению"""
+    try:
+        print("Создание таблиц в базе данных...")
+        db.create_all()
+        print("✅ Таблицы успешно созданы!")
+    except Exception as e:
+        print(f"❌ Ошибка при создании таблиц: {e}")
 
 @app.route('/')
 def index():
@@ -475,12 +469,13 @@ def internal_error(error):
 
 
 if __name__ == '__main__':
-    # Инициализируем БД при запуске, но не блокируем запуск при ошибке
-    try:
-        init_database()
-    except Exception as e:
-        print(f"⚠️  Не удалось инициализировать БД при запуске: {e}")
+    # Только для локального запуска
+    with app.app_context():
+        try:
+            db.create_all()
+            print("Таблицы созданы для локального запуска")
+        except Exception as e:
+            print(f"Ошибка создания таблиц: {e}")
 
-    # Для Render используем порт из переменной окружения
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
