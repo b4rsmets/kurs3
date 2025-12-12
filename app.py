@@ -1,8 +1,8 @@
 import os
+import ssl
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import ssl
 from functools import wraps
 
 app = Flask(__name__)
@@ -83,19 +83,54 @@ class Result(db.Model):
     image_url = db.Column(db.String(500))
 
 
+def init_database():
+    """Инициализация базы данных - создание таблиц"""
+    print("Инициализация базы данных...")
+    try:
+        with app.app_context():
+            # Создаем все таблицы
+            db.create_all()
+            print("✅ Таблицы созданы успешно!")
+
+            # Проверяем, есть ли уже данные
+            quiz_count = Quiz.query.count()
+            if quiz_count == 0:
+                print("ℹ️  База данных пуста. Можно добавить тестовые данные через админку.")
+            else:
+                print(f"ℹ️  В базе найдено {quiz_count} квиз(ов)")
+
+    except Exception as e:
+        print(f"❌ Ошибка при создании таблиц: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+# Инициализируем базу данных при старте приложения
+init_database()
+
+
 @app.route('/')
 def index():
     """Главная страница со списком квизов"""
-    quizzes = Quiz.query.all()
-    return render_template('index.html', quizzes=quizzes)
+    try:
+        quizzes = Quiz.query.all()
+        return render_template('index.html', quizzes=quizzes)
+    except Exception as e:
+        # Если произошла ошибка, показываем пустую страницу с сообщением
+        flash(f'Ошибка загрузки квизов: {str(e)}', 'error')
+        return render_template('index.html', quizzes=[])
 
 
 @app.route('/quiz/<int:quiz_id>/start')
 def start_quiz(quiz_id):
     """Начало квиза"""
-    quiz = Quiz.query.get_or_404(quiz_id)
-    quiz.questions = sorted(quiz.questions, key=lambda x: x.order_index)
-    return render_template('quiz.html', quiz=quiz)
+    try:
+        quiz = Quiz.query.get_or_404(quiz_id)
+        quiz.questions = sorted(quiz.questions, key=lambda x: x.order_index)
+        return render_template('quiz.html', quiz=quiz)
+    except Exception as e:
+        flash(f'Ошибка загрузки квиза: {str(e)}', 'error')
+        return redirect(url_for('index'))
 
 
 @app.route('/quiz/<int:quiz_id>')
@@ -454,25 +489,6 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 
-def init_database():
-    """Инициализация базы данных"""
-    try:
-        with app.app_context():
-            db.create_all()
-            print("✅ Таблицы созданы или уже существуют")
-
-            # Проверяем, есть ли уже квизы
-            if Quiz.query.count() == 0:
-                print("База данных пуста, можно добавить тестовые данные")
-    except Exception as e:
-        print(f"❌ Ошибка при инициализации базы: {e}")
-        import traceback
-        traceback.print_exc()
-
-
 if __name__ == '__main__':
-    # Инициализируем базу данных
-    init_database()
-
     # Для локального запуска
     app.run(debug=True, host='0.0.0.0', port=5000)
