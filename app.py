@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import ssl
@@ -8,22 +8,19 @@ from functools import wraps
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', '1112223333')
 
-# ИСПОЛЬЗУЙТЕ ССЫЛКУ ИЗ ПАНЕЛИ УПРАВЛЕНИЯ RENDER.COM!
-# Скопируйте точную строку подключения из настроек вашей базы данных на Render
-database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4u62oq4d50c739hb1dg-a.frankfurt-postgres.render.com/quiz_db_bew6'
+# Исправленная строка подключения для Render с SSL
+database_url = 'postgresql+pg8000://bars:V5QrN0YBAahV7fXVUGUAxLWp0oziEcAi@dpg-d4u62oq4d50c739hb1dg-a.frankfurt-postgres.render.com:5432/quiz_db_bew6'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# ДЛЯ RENDER.COM ЛУЧШЕ ВООБЩЕ УБРАТЬ SSL НАСТРОЙКИ НА ВРЕМЯ ТЕСТА
-# ИЛИ ИСПОЛЬЗОВАТЬ БОЛЕЕ ПРОСТУЮ КОНФИГУРАЦИЮ:
+# Важно: добавляем настройки SSL для подключения к Render
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {
-        'sslmode': 'require',  # Render требует SSL
-        'connect_timeout': 10
-    },
-    'pool_recycle': 300,
-    'pool_pre_ping': True,
+        'ssl': {
+            'ssl_context': ssl.create_default_context()
+        }
+    }
 }
 
 db = SQLAlchemy(app)
@@ -33,7 +30,17 @@ ADMIN_CREDENTIALS = {
     'password': 'admin123'
 }
 
-# МОДЕЛИ
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
 class Quiz(db.Model):
     __tablename__ = 'quiz'
     id = db.Column(db.Integer, primary_key=True)
@@ -43,6 +50,7 @@ class Quiz(db.Model):
     questions = db.relationship('Question', backref='quiz', lazy=True, cascade='all, delete-orphan')
     results = db.relationship('Result', backref='quiz', lazy=True, cascade='all, delete-orphan')
 
+
 class Question(db.Model):
     __tablename__ = 'question'
     id = db.Column(db.Integer, primary_key=True)
@@ -51,12 +59,14 @@ class Question(db.Model):
     order_index = db.Column(db.Integer, default=0)
     answers = db.relationship('Answer', backref='question', lazy=True, cascade='all, delete-orphan')
 
+
 class Answer(db.Model):
     __tablename__ = 'answer'
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey('question.id'), nullable=False)
     text = db.Column(db.String(255), nullable=False)
     score = db.Column(db.Integer, nullable=False)
+
 
 class Result(db.Model):
     __tablename__ = 'result'
@@ -68,24 +78,6 @@ class Result(db.Model):
     description = db.Column(db.Text)
     image_url = db.Column(db.String(500))
 
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('admin_logged_in'):
-            return redirect(url_for('admin_login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-# ВАЖНО: Инициализация БД при первом запросе
-@app.before_first_request
-def create_tables():
-    """Создание таблиц при первом запросе к приложению"""
-    try:
-        print("Создание таблиц в базе данных...")
-        db.create_all()
-        print("✅ Таблицы успешно созданы!")
-    except Exception as e:
-        print(f"❌ Ошибка при создании таблиц: {e}")
 
 @app.route('/')
 def index():
@@ -153,7 +145,6 @@ def submit_quiz(quiz_id):
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
     """Страница входа для администратора"""
-    # Если уже авторизован, перенаправляем в админку
     if session.get('admin_logged_in'):
         return redirect(url_for('admin_dashboard'))
 
@@ -213,6 +204,7 @@ def admin_create_quiz():
 
     return render_template('admin_quiz_form.html', quiz=None)
 
+
 @app.route('/admin/quiz/<int:quiz_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_edit_quiz(quiz_id):
@@ -223,7 +215,6 @@ def admin_edit_quiz(quiz_id):
         try:
             quiz.title = request.form.get('title')
             quiz.description = request.form.get('description')
-            # Убрана логика is_active
 
             db.session.commit()
             flash('Квиз успешно обновлен!', 'success')
@@ -275,7 +266,6 @@ def admin_edit_question(question_id):
             answer_scores = request.form.getlist('answer_score[]')
 
             Answer.query.filter_by(question_id=question.id).delete()
-
 
             for i in range(len(answer_texts)):
                 if answer_texts[i].strip():
@@ -448,14 +438,6 @@ def admin_delete_result(result_id):
 
     return redirect(url_for('admin_quiz_results', quiz_id=quiz_id))
 
-@app.route('/health')
-def health_check():
-    """Endpoint для проверки здоровья приложения"""
-    try:
-        db.session.execute('SELECT 1')
-        return jsonify({'status': 'healthy', 'database': 'connected'})
-    except Exception as e:
-        return jsonify({'status': 'unhealthy', 'database': 'disconnected', 'error': str(e)}), 500
 
 @app.errorhandler(404)
 def not_found_error(error):
@@ -468,14 +450,18 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 
-if __name__ == '__main__':
-    # Только для локального запуска
-    with app.app_context():
-        try:
+def create_tables():
+    """Функция для создания таблиц"""
+    try:
+        with app.app_context():
             db.create_all()
-            print("Таблицы созданы для локального запуска")
-        except Exception as e:
-            print(f"Ошибка создания таблиц: {e}")
+            print("✅ Таблицы успешно созданы или уже существуют")
+    except Exception as e:
+        print(f"❌ Ошибка при создании таблиц: {e}")
 
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+
+if __name__ == '__main__':
+    # Создаем таблицы при запуске
+    create_tables()
+    # Для локального запуска
+    app.run(debug=True, host='0.0.0.0', port=5000)
